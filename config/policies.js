@@ -16,7 +16,10 @@ module.exports.policies = {
   * (`true` allows public access)                                            *
   *                                                                          *
   ***************************************************************************/
-
-  // '*': true,
-
+ UsersController: {
+   '*': true,
+   getList: 'authorization',
+   update: 'authorization',
+  },
+  '*': 'authorization',
 };

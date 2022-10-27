@@ -4,7 +4,6 @@
  * @description :: Server-side actions for handling incoming requests.
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
-const bcrypt = require('bcrypt')
 const { sendEmail } = require("../../EmailService");
 const jwt = require("jsonwebtoken")
 
@@ -66,7 +65,11 @@ module.exports = {
             }
         case 'createUser':
             const newUser = await sails.helpers.createuser(data)
-            newUser.accessToken = jwt.sign({id:newUser.id},sails.config.custom.jwtAccessKey,{ expiresIn: '5 days' })
+            newUser.accessToken = jwt.sign({id:newUser.id},sails.config.custom.jwtAccessKey,{ expiresIn: '8h' })
+            let refeshToken = jwt.sign({id:newUser.id},sails.config.custom.jwtRefeshKey,{ expiresIn: '5 days'})
+            let authorization = jwt.sign({id:newUser.id},sails.config.custom.jwtRefeshKey)
+            res.cookie('refeshToken',refeshToken,{ maxAge: 5 * 24 * 3600 * 1000, httpOnly: true })
+            res.cookie('Authorization','Bearer '+ authorization,{ httpOnly: true})
             return res.json(newUser)
         default:
             throw new Error('Invalid action')
@@ -80,7 +83,11 @@ module.exports = {
         const isLogin = await sails.helpers.checklogin({password,hash:userInfo.password})
         if(isLogin) {
             delete userInfo.password
-            userInfo.accessToken = jwt.sign({id:userInfo.id},sails.config.custom.jwtAccessKey,{ expiresIn: '5 days' })
+            userInfo.accessToken = jwt.sign({id:userInfo.id},sails.config.custom.jwtAccessKey,{ expiresIn: '8h' })
+            let refeshToken = jwt.sign({id:userInfo.id},sails.config.custom.jwtRefeshKey,{ expiresIn: '5 days'})
+            let authorization = jwt.sign({id:userInfo.id},sails.config.custom.jwtRefeshKey)
+            res.cookie('refeshToken',refeshToken,{ maxAge: 5 * 24 * 3600 * 1000, httpOnly: true })
+            res.cookie('Authorization','Bearer '+ authorization,{ httpOnly: true})
             return res.json(userInfo)
         }else{
             return res.status(400).send('Sai tài khoản hoặc mật khẩu!')
@@ -92,11 +99,33 @@ module.exports = {
 
   authorization: async function (req, res) {
     const {accessToken} = req.body
+    const {refeshToken} = req.cookies
     jwt.verify(accessToken,sails.config.custom.jwtAccessKey,async (err,data) => {
-        if(err) return res.status(403).end()
-        const userInfo = await Users.findOne({id: data.id}).populate('projectIds')
+        let decoded = data
+        let newAccessToken
+        if(err) {
+            if(err.name === 'TokenExpiredError' && refeshToken){
+
+                jwt.verify(refeshToken,sails.config.custom.jwtRefeshKey, (err,data) => {
+                    if(err) {
+                        res.clearCookie('refeshToken')
+                        return res.status(403).end()
+                    }
+                    decoded = data
+                    newAccessToken = jwt.sign({id:decoded.id},sails.config.custom.jwtAccessKey,{ expiresIn: '8h' })
+                })
+            }else{
+                return res.status(403).end()
+            }
+        }
+        const userInfo = await Users.findOne({id: decoded.id}).populate('projectIds')
         if(userInfo){
             delete userInfo.password
+            if(newAccessToken) {
+                userInfo.accessToken = newAccessToken
+            }
+            let authorization = jwt.sign({id:userInfo.id},sails.config.custom.jwtRefeshKey)
+            res.cookie('Authorization','Bearer '+ authorization,{ httpOnly: true})
             return res.json(userInfo)
         }else{
             return res.status(400).end()
@@ -165,6 +194,11 @@ module.exports = {
         default:
             throw new Error('Invalid action')
     }
+  },
+
+  logout: (req, res) => {
+    res.clearCookie('Authorization')
+    res.ok()
   }
 
 };

@@ -11,13 +11,13 @@
 module.exports.routes = {
     // users
 
-    'get /api/board': 'IssuesController.getIssues',
     'post /api/users': 'UsersController.getList',
     'patch /api/users/update': 'UsersController.update',
     'post /api/users/authorization': 'UsersController.authorization',
     'post /api/users/register': 'UsersController.register',
     'post /api/users/login': 'UsersController.login',
     'post /api/users/resetPwd': 'UsersController.resetPwd',
+    'post /api/users/logout': 'UsersController.logout',
 
     // projects
 

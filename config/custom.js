@@ -13,7 +13,7 @@ module.exports.custom = {
   passwordSecret: 'jfdoifyqymizmzbj',
   saltRounds: 10,
   jwtAccessKey: 'jfdoifyqymizmzbj',
-  jwtRefeshKey: 'Zzd814nldl91104qor5911gjald'
+  jwtRefeshKey: 'Zzd814nldl91104qor5911gjald',
   /***************************************************************************
   *                                                                          *
   * Any other custom config this Sails app should use during development.    *

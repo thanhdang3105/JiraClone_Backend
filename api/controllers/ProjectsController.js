@@ -12,7 +12,10 @@ module.exports = {
     newProject = await Projects.findOne({id: newProject.id}).populate('userIds',{
       select: ['name','email','avatarUrl']
     })
-    return res.json(newProject)
+    if(newProject){
+      return res.json(newProject)
+    }
+    return res.status(400).send('Create Failed')
   },
 
   update: async (req,res) => {
