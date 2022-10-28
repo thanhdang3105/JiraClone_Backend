@@ -7,14 +7,15 @@ module.exports = async function (req, res, proceed) {
     // or, if this is the last policy, the relevant action.
     // > For more about where `req.me` comes from, check out this app's
     // > custom hook (`api/hooks/custom/index.js`).
-    const {Authorization} = req.cookies;
-    if (Authorization) {
-        const [key,token] = Authorization.split(' ')
+    const {authorization} = req.headers;
+    if (authorization) {
+        const [key,token] = authorization.split(' ')
         if(key === 'Bearer'){
             try {
-                jwt.verify(token,sails.config.custom.jwtRefeshKey);
+                jwt.verify(token,sails.config.custom.jwtAccessKey);
                 return proceed();
               } catch(err) {
+                if(err.name === 'TokenExpiredError') return proceed();
                 return res.forbidden();
               }
         }

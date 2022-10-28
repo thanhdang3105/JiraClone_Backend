@@ -17,14 +17,13 @@ module.exports.routes = {
     'post /api/users/register': 'UsersController.register',
     'post /api/users/login': 'UsersController.login',
     'post /api/users/resetPwd': 'UsersController.resetPwd',
-    'post /api/users/logout': 'UsersController.logout',
+    'get /api/users/logout': 'UsersController.logout',
 
     // projects
 
     'post /api/projects/addUsers': 'ProjectsController.addUsers',
     'post /api/projects/removeUsers': 'ProjectsController.removeUsers',
     'post /api/projects/create': 'ProjectsController.create',
-    'get /api/projects/getData': 'ProjectsController.getByUserId',
     'patch /api/projects/update': 'ProjectsController.update',
     'get /api/projects': 'ProjectsController.getByProjectId',
     'delete /api/projects': 'ProjectsController.delete',
@@ -36,5 +35,6 @@ module.exports.routes = {
     'patch /api/issues/updateMany' : 'IssuesController.updateMany',
     'get /api/issues/search' : 'IssuesController.search',
     'post /api/issues/comments' : 'IssuesController.addComment',
+    'get /api/issues/comments' : 'IssuesController.getComments',
     'delete /api/issues' : 'IssuesController.delete',
 };

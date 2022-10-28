@@ -67,9 +67,7 @@ module.exports = {
             const newUser = await sails.helpers.createuser(data)
             newUser.accessToken = jwt.sign({id:newUser.id},sails.config.custom.jwtAccessKey,{ expiresIn: '8h' })
             let refeshToken = jwt.sign({id:newUser.id},sails.config.custom.jwtRefeshKey,{ expiresIn: '5 days'})
-            let authorization = jwt.sign({id:newUser.id},sails.config.custom.jwtRefeshKey)
             res.cookie('refeshToken',refeshToken,{ maxAge: 5 * 24 * 3600 * 1000, httpOnly: true })
-            res.cookie('Authorization','Bearer '+ authorization,{ httpOnly: true})
             return res.json(newUser)
         default:
             throw new Error('Invalid action')
@@ -78,16 +76,16 @@ module.exports = {
 
   login: async function (req, res) {
     const {email,password} = req.body
-    const userInfo = await Users.findOne({email}).populate('projectIds').decrypt()
+    const userInfo = await Users.findOne({email}).decrypt()
     if(userInfo){
         const isLogin = await sails.helpers.checklogin({password,hash:userInfo.password})
         if(isLogin) {
             delete userInfo.password
+            const listProjects = await Projects.find({userIds: {contains: userInfo.id}})
+            userInfo.projects = listProjects
             userInfo.accessToken = jwt.sign({id:userInfo.id},sails.config.custom.jwtAccessKey,{ expiresIn: '8h' })
             let refeshToken = jwt.sign({id:userInfo.id},sails.config.custom.jwtRefeshKey,{ expiresIn: '5 days'})
-            let authorization = jwt.sign({id:userInfo.id},sails.config.custom.jwtRefeshKey)
             res.cookie('refeshToken',refeshToken,{ maxAge: 5 * 24 * 3600 * 1000, httpOnly: true })
-            res.cookie('Authorization','Bearer '+ authorization,{ httpOnly: true})
             return res.json(userInfo)
         }else{
             return res.status(400).send('Sai tài khoản hoặc mật khẩu!')
@@ -118,14 +116,13 @@ module.exports = {
                 return res.status(403).end()
             }
         }
-        const userInfo = await Users.findOne({id: decoded.id}).populate('projectIds')
+        const userInfo = await Users.findOne({id: decoded.id}).select(['name','email','avatarUrl'])
         if(userInfo){
-            delete userInfo.password
+            const listProjects = await Projects.find({userIds: {contains: userInfo.id}})
+            userInfo.projects = listProjects
             if(newAccessToken) {
                 userInfo.accessToken = newAccessToken
             }
-            let authorization = jwt.sign({id:userInfo.id},sails.config.custom.jwtRefeshKey)
-            res.cookie('Authorization','Bearer '+ authorization,{ httpOnly: true})
             return res.json(userInfo)
         }else{
             return res.status(400).end()
@@ -178,10 +175,11 @@ module.exports = {
             if(verifyCodes.get(data?.email) === data?.code){
                 const passwordHash = sails.helpers.hashpassword(data.password)
                 await Users.updateOne({email: data.email}).set({password: passwordHash})
-                const userInfo = await Users.findOne({email: data.email}).populate('projectIds')
-                console.log(userInfo)
+                const userInfo = await Users.findOne({email: data.email})
                 if(userInfo){
                     delete userInfo.password
+                    const listProjects = await Projects.find({userIds: {contains: userInfo.id}})
+                    userInfo.projects = listProjects
                     userInfo.accessToken = jwt.sign({id:userInfo.id},sails.config.custom.jwtAccessKey,{ expiresIn: '5 days' })
                     verifyCodes.delete(data.email)
                     return res.json(userInfo)
@@ -197,7 +195,7 @@ module.exports = {
   },
 
   logout: (req, res) => {
-    res.clearCookie('Authorization')
+    res.clearCookie('refeshToken')
     res.ok()
   }
 

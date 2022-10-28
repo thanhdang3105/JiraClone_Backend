@@ -23,16 +23,15 @@ module.exports = {
       model: 'users'
     },
     userIds: {
-      collection: 'users',
-      via: 'projectIds'
+      type: 'ref',
+      required: true,
     },
     projectUrl: {
       type: 'string',
       required: true
     },
     issues: {
-      collection: 'issues',
-      via: 'projectId'
+      type: 'ref',
     }
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
     //  ╠═╝╠╦╝║║║║║ ║ ║╚╗╔╝║╣ ╚═╗

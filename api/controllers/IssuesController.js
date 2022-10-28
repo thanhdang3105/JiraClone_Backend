@@ -8,9 +8,27 @@
 module.exports = {
   create: async (req, res) => {
     const data = req.body
-    let newIssues = await Issues.create(data).fetch()
+    const newIssues = await Issues.create(data).fetch()
     if(newIssues){
-      newIssues = await sails.helpers.issuesfind('findOne',{id: newIssues.id})
+      const usersInfo = await Users.find({
+        where: {or: [
+          {id: {in: newIssues.assignees}},
+          {id: newIssues.reporterId}
+        ]},
+        select: ['name','email','avatarUrl']
+      })
+
+      const assignees = []
+      usersInfo.map(user => {
+        if(newIssues.assignees.includes(user.id)){
+          assignees.push(user)
+        }
+        if(newIssues.reporterId === user.id){
+          newIssues.reporterId = user
+        }
+        return user
+      })
+      newIssues.assignees = assignees
       return res.json(newIssues)
     }
     return res.status(400).end()
@@ -19,9 +37,35 @@ module.exports = {
   update: async (req, res) => {
     const {idUpdate} = req.query
     const data = req.body
-    await Issues.updateOne({id: idUpdate}).set(data)
-    const issueUpdated = await sails.helpers.issuesfind('findOne',{id: idUpdate})
-    return res.json(issueUpdated)
+    if(data) {
+      try {
+        const issueUpdated = await Issues.updateOne({id: idUpdate}).set(data)
+        const usersInfo = await Users.find({
+          where: {or: [
+            {id: {in: issueUpdated.assignees}},
+            {id: issueUpdated.reporterId}
+          ]},
+          select: ['name','email','avatarUrl']
+        })
+  
+        const assignees = []
+        usersInfo.map(user => {
+          if(issueUpdated.assignees.includes(user.id)){
+            assignees.push(user)
+          }
+          if(issueUpdated.reporterId === user.id){
+            issueUpdated.reporterId = user
+          }
+          return user
+        })
+        issueUpdated.assignees = assignees
+        return res.json(issueUpdated)
+      } catch (error) {
+        return res.status(400).end()
+      }
+    }else{
+      return res.status(400).send('Invalid data!')
+    }
   },
 
   updateMany: async (req,res) => {
@@ -52,34 +96,75 @@ module.exports = {
   },
 
   addComment: async (req, res) => {
-    const {id,...info} = req.body
-    const issueUpdated = await sails.helpers.issuesfind('findOne',{id})
-    if(issueUpdated.comments && issueUpdated.comments.length){
-      issueUpdated.comments.unshift(info)
-    }else{
-      issueUpdated.comments = [info]
+    const data = req.body
+    try {
+      const newComment = await Comments.create(data).fetch()
+      if(newComment){
+        const userInfo = await Users.findOne({id: newComment.userId}).select(['name','avatarUrl'])
+        Object.assign(newComment,userInfo)
+        delete newComment.userId
+        return res.json(newComment)
+      }
+      throw new Error('Create failed')
+    } catch (error) {
+      console.log(error)
+      res.status(400).end(error.message)
     }
-    await Issues.updateOne({id},{comments:issueUpdated.comments})
-    return res.json(issueUpdated)
+  },
+
+  getComments: async (req, res) => {
+    const {issueId} = req.query
+    try {
+      if(issueId){
+        const listComments = await Comments.find({
+          where: {issueId},
+          sort: 'createdAt DESC'
+        })
+        for(let comment of listComments){
+          userInfo = await Users.findOne({id:comment.userId}).select(['name','avatarUrl'])
+          delete userInfo.id
+          Object.assign(comment,userInfo)
+        }
+        return res.json(listComments)
+      }
+      return res.status(400).send('Invalid data!')
+    } catch (error) {
+      console.log(error)
+      return res.status(400).send('Invalid data!')
+    }
   },
 
   search: async (req, res) => {
-    const {searchTerm} = req.query
-    if(searchTerm){
-      const listIssues = await sails.helpers.issuesfind('find',{
-        or: [
-          { title : { contains: searchTerm}},
-          { title : { contains: searchTerm.toUpperCase()}},
-          { title : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
-          { type : { contains: searchTerm}},
-          { type : { contains: searchTerm.toUpperCase()}},
-          { type : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
-          { description : { contains: searchTerm}},
-          { description : { contains: searchTerm.toUpperCase()}},
-          { description : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
-        ]
-      })
-      return res.json(listIssues)
+    const {searchTerm,projectId} = req.query
+    if(searchTerm && projectId){
+      // const listIssues = await Issues.find({
+      //   // or: [
+      //   //   { title : { $regex: `/${searchTerm}/i` }},
+      //   //   // { title : { contains: searchTerm.toUpperCase()}},
+      //   //   // { title : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
+      //   //   // { type : { contains: searchTerm}},
+      //   //   // { type : { contains: searchTerm.toUpperCase()}},
+      //   //   // { type : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
+      //   //   // { description : { contains: searchTerm}},
+      //   //   // { description : { contains: searchTerm.toUpperCase()}},
+      //   //   // { description : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
+      //   // ],
+      //   title : { regex: `/${searchTerm}/i` },
+      //   projectId
+      // })
+      const issues = []
+      const regex = new RegExp(searchTerm, 'ig')
+      const listIssues = await Issues.find({projectId})
+
+      listIssues.map((issue => {
+        const issueStringify = JSON.stringify(Object.values(issue))
+        const check = issueStringify.match(regex)
+          if(issueStringify && check){
+          issues.push(issue)
+        }
+        return issue
+      }))
+      return res.json(issues)
     }
     return res.status(400).send('Invalid value search!')
   }

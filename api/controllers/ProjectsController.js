@@ -8,10 +8,7 @@
 module.exports = {
   create: async (req,res) => {
     const projectInfo = req.body
-    let newProject = await Projects.create(projectInfo).fetch()
-    newProject = await Projects.findOne({id: newProject.id}).populate('userIds',{
-      select: ['name','email','avatarUrl']
-    })
+    const newProject = await Projects.create(projectInfo).fetch()
     if(newProject){
       return res.json(newProject)
     }
@@ -23,30 +20,37 @@ module.exports = {
     if(data){
       const {id,...dataUpdate} = data
       const projectUpdated = await Projects.updateOne({id}).set(dataUpdate)
-      return res.json(projectUpdated)
+      return res.json({message: 'Project updated successfully'})
     }
     return res.status(400).send('Invalid data update!')
   },
 
-  getByUserId: async (req, res) => {
-    const {userId} = req.query
-    const userInfo = await Users.findOne({id:userId}).populate('projectIds')
-    if(userInfo){
-      return res.json(userInfo.projectIds)
-    }else{
-      return res.status(401).end()
-    }
-  }, 
-
   getByProjectId: async (req, res) => {
     const {id} = req.query
-    const projectInfo = await Projects.findOne({id}).populate('userIds',{
-      select: ['name','email','avatarUrl']
-    })
-    const listIssue = await Issues.find({projectId: id}).populate('assignees',{
-      select: ['name','email','avatarUrl']
-    }).populate('reporterId')
-    return res.json({project: projectInfo,issues: listIssue})
+    try {
+      const projectInfo = await Projects.findOne({id})
+      const usersInfo = await Users.find({id: {in: projectInfo.userIds}}).select(['name','email','avatarUrl'])
+      projectInfo.userIds = usersInfo
+      const listIssue = await Issues.find({projectId: id})
+      
+      listIssue.forEach(issue => {
+        let assignees = []
+        usersInfo.map(user => {
+          if(issue.assignees.includes(user.id)){
+            assignees.push(user)
+          }
+          if(issue.reporterId === user.id){
+            issue.reporterId = user
+          }
+        })
+        issue.assignees = assignees
+        return issue
+      })
+      return res.json({project: projectInfo,issues: listIssue})
+    } catch (error) {
+      console.log(error)
+      return res.status(400).end()
+    }
   },
 
   delete: async (req, res) => {
@@ -61,23 +65,40 @@ module.exports = {
   },
 
   addUsers: async (req, res) => {
-    const {userIds,projectId} = req.body
-    await Projects.addToCollection(projectId,'userIds',userIds)
-    const newUsersInProject = await Users.find({id: {in: userIds}}).select(['name','email','avatarUrl'])
-    return res.json(newUsersInProject)
+    try {
+      const {userIds,project} = req.body
+      const newUserIds = project.userIds.map(user => user.id).concat(userIds)
+      await Projects.updateOne({id: project.id}).set({userIds: newUserIds})
+      const newUsersInProject = await Users.find({id: {in: userIds}}).select(['name','email','avatarUrl'])
+      return res.json(newUsersInProject)
+    } catch (error) {
+      console.log(error)
+      return res.status(400).end()
+    }
   },
 
   removeUsers: async (req, res) => {
-    const {userIds,projectId} = req.body
     try {
-      await Projects.removeFromCollection(projectId,'userIds',userIds)
+      const {userIds,project} = req.body
+      const newUserIds = project.userIds.filter(user => !userIds.includes(user.id)).map(user => user.id)
+      await Projects.updateOne({id: project.id}).set({userIds: newUserIds})
 
-      const issues = await Issues.find({projectId})
-
-      const issueIds = issues.map(issue => issue.id)
-
-      await Issues.removeFromCollection(issueIds,'assignees',userIds)
-
+      const listIssue = await Issues.find({projectId: project.id})
+      const listUpdate = []
+       listIssue.map(issue => {
+        let assignees = []
+        issue.assignees.map(userId => {
+          if(!userIds.includes(userId)){
+            assignees.push(userId)
+          }
+          return userId
+        })
+        if(assignees.length > 0){
+          listUpdate.push(Issues.updateOne({id: issue.id}).set({assignees}))
+        }
+        return issue
+      })
+      await Promise.all(listUpdate)
       return res.json(userIds)
     } catch (error) {
       return res.status(500).end()

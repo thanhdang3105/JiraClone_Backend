@@ -26,8 +26,7 @@ module.exports = {
       defaultsTo: 'backlog'
     },
     assignees: {
-        collection: 'users',
-        via: 'issueIds'
+        type: 'ref'
     },
     reporterId: {
       model: 'users'
@@ -38,9 +37,6 @@ module.exports = {
     },
     projectId: {
       model: 'projects'
-    },
-    comments: {
-      type: 'ref'
     },
     estimate: {
       type: 'number',
