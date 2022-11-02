@@ -145,13 +145,34 @@ module.exports = {
     if(searchTerm && projectId){
       const regex = new RegExp('.*'+searchTerm+'.*','ig')
       const db = Issues.getDatastore().manager
-      const listIssues = await db.collection('issues').find({title: regex,projectId}).map((records) => {
+      const listIssues = await db.collection('issues')
+      .find({
+        $or:[
+          {title: regex},
+          {description: regex},
+          {status: regex}
+        ],
+        projectId
+      }).map((records) => {
         if(records){
           records.id = records._id
           delete records._id
         }
         return records
       }).toArray()
+      // .aggregate([
+      //   {$match: {$or: [
+      //       {title: regex},
+      //       {description: regex},
+      //       {status: regex}
+      //   ]}},
+      //   {$project: {
+      //     _id: 0,
+      //     id: '$_id',
+      //     title: 1,
+      //     type: 1,
+      //   }}
+      // ]).toArray()
       return res.json(listIssues)
     }
     return res.status(400).send('Invalid value search!')

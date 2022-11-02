@@ -108,7 +108,6 @@ module.exports = {
         let newAccessToken
         if(err) {
             if(err.name === 'TokenExpiredError' && refeshToken){
-
                 jwt.verify(refeshToken,sails.config.custom.jwtRefeshKey, (err,data) => {
                     if(err) {
                         res.clearCookie('refeshToken')
@@ -118,7 +117,6 @@ module.exports = {
                     newAccessToken = jwt.sign({id:decoded.id},sails.config.custom.jwtAccessKey,{ expiresIn: '8h' })
                 })
             }else{
-                console.log(err)
                 return res.status(403).end()
             }
         }
