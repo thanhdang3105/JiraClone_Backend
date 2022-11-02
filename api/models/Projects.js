@@ -6,7 +6,6 @@
  */
 
 module.exports = {
-
   attributes: {
     name: {
       type: 'string',
@@ -20,11 +19,11 @@ module.exports = {
       type: 'string',
     },
     userId: {
-      model: 'users'
+      type: 'string',
+      required: true,
     },
     userIds: {
       type: 'ref',
-      required: true,
     },
     projectUrl: {
       type: 'string',
@@ -48,6 +47,19 @@ module.exports = {
     //  ╩ ╩╚═╝╚═╝╚═╝╚═╝╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
 
   },
+
+  beforeCreate: function (valuesToSet, proceed) {
+    valuesToSet.userIds = [valuesToSet.userId]
+    return proceed()
+  },
+
+  beforeDestroy: async function (criteria, proceed) {
+    const projectId = criteria.where.id
+    if(projectId) {
+      await Issues.destroy({projectId})
+    }
+    return proceed()
+  }
 
 };
 

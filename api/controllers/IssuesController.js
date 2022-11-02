@@ -6,7 +6,12 @@
  */
 
 module.exports = {
-  create: async (req, res) => {
+  getList: async (req, res) => {
+    const listIssues = await Issues.find({})
+    return res.json(listIssues)
+  },
+
+  createIssue: async (req, res) => {
     const data = req.body
     const newIssues = await Issues.create(data).fetch()
     if(newIssues){
@@ -34,7 +39,7 @@ module.exports = {
     return res.status(400).end()
   },
   
-  update: async (req, res) => {
+  updateIssue: async (req, res) => {
     const {idUpdate} = req.query
     const data = req.body
     if(data) {
@@ -136,35 +141,18 @@ module.exports = {
 
   search: async (req, res) => {
     const {searchTerm,projectId} = req.query
+    
     if(searchTerm && projectId){
-      // const listIssues = await Issues.find({
-      //   // or: [
-      //   //   { title : { $regex: `/${searchTerm}/i` }},
-      //   //   // { title : { contains: searchTerm.toUpperCase()}},
-      //   //   // { title : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
-      //   //   // { type : { contains: searchTerm}},
-      //   //   // { type : { contains: searchTerm.toUpperCase()}},
-      //   //   // { type : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
-      //   //   // { description : { contains: searchTerm}},
-      //   //   // { description : { contains: searchTerm.toUpperCase()}},
-      //   //   // { description : { contains: searchTerm[0].toUpperCase() + searchTerm.substring(1)}},
-      //   // ],
-      //   title : { regex: `/${searchTerm}/i` },
-      //   projectId
-      // })
-      const issues = []
-      const regex = new RegExp(searchTerm, 'ig')
-      const listIssues = await Issues.find({projectId})
-
-      listIssues.map((issue => {
-        const issueStringify = JSON.stringify(Object.values(issue))
-        const check = issueStringify.match(regex)
-          if(issueStringify && check){
-          issues.push(issue)
+      const regex = new RegExp('.*'+searchTerm+'.*','ig')
+      const db = Issues.getDatastore().manager
+      const listIssues = await db.collection('issues').find({title: regex,projectId}).map((records) => {
+        if(records){
+          records.id = records._id
+          delete records._id
         }
-        return issue
-      }))
-      return res.json(issues)
+        return records
+      }).toArray()
+      return res.json(listIssues)
     }
     return res.status(400).send('Invalid value search!')
   }

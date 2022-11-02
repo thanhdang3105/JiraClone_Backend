@@ -6,17 +6,18 @@
  */
 
 module.exports = {
-
   attributes: {
     comment:{
       type: 'string',
       required: true
     },
     userId:{
-      model: 'users'
+      type: 'string',
+      required: true
     },
     issueId:{
-      model: 'issues'
+      type: 'string',
+      required: true
     }
     //  ╔═╗╦═╗╦╔╦╗╦╔╦╗╦╦  ╦╔═╗╔═╗
     //  ╠═╝╠╦╝║║║║║ ║ ║╚╗╔╝║╣ ╚═╗

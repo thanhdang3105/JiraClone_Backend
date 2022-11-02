@@ -5,19 +5,24 @@
  * @help        :: See https://sailsjs.com/docs/concepts/actions
  */
 const { sendEmail } = require("../../EmailService");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
 
 const verifyCodes = new global.Map()
 const timmerIds = new global.Map()
 
 module.exports = {
-  getList: async function (req, res) {
+  getList: async (req, res) => {
+    const listUsers = await Users.find({}).select(['name','email','avatarUrl'])
+    return res.json(listUsers)
+  },
+
+  getUsersById: async function (req, res) {
     const {userIds} = req.body
     const listUsers = await Users.find({id: {nin: userIds}}).select(['name','email','avatarUrl'])
     return res.json(listUsers)
   },
 
-  update: async (req, res) => {
+  updateUser: async (req, res) => {
     const data = req.body
     if(data){
         const {id,...info} = data
@@ -113,6 +118,7 @@ module.exports = {
                     newAccessToken = jwt.sign({id:decoded.id},sails.config.custom.jwtAccessKey,{ expiresIn: '8h' })
                 })
             }else{
+                console.log(err)
                 return res.status(403).end()
             }
         }

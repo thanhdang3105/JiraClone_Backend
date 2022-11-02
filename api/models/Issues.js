@@ -29,14 +29,16 @@ module.exports = {
         type: 'ref'
     },
     reporterId: {
-      model: 'users'
+      type: 'string',
+      required: true
     },
     priority: {
       type: 'string',
       required: true
     },
     projectId: {
-      model: 'projects'
+      type: 'string',
+      required: true
     },
     estimate: {
       type: 'number',
@@ -44,7 +46,7 @@ module.exports = {
     },
     index: {
       type: 'number',
-      required: true
+      defaultsTo: 0
     },
     deadline: {
       type: 'number'

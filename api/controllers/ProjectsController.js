@@ -6,7 +6,12 @@
  */
 
 module.exports = {
-  create: async (req,res) => {
+  getList: async (req, res) => {
+    const listProjects = await Projects.find({})
+    return res.json(listProjects)
+  },
+
+  createProject: async (req,res) => {
     const projectInfo = req.body
     const newProject = await Projects.create(projectInfo).fetch()
     if(newProject){
@@ -15,11 +20,11 @@ module.exports = {
     return res.status(400).send('Create Failed')
   },
 
-  update: async (req,res) => {
+  updateProject: async (req,res) => {
     const data = req.body
     if(data){
       const {id,...dataUpdate} = data
-      const projectUpdated = await Projects.updateOne({id}).set(dataUpdate)
+      await Projects.updateOne({id}).set(dataUpdate)
       return res.json({message: 'Project updated successfully'})
     }
     return res.status(400).send('Invalid data update!')
@@ -36,7 +41,7 @@ module.exports = {
       listIssue.forEach(issue => {
         let assignees = []
         usersInfo.map(user => {
-          if(issue.assignees.includes(user.id)){
+          if(issue.assignees?.includes(user.id)){
             assignees.push(user)
           }
           if(issue.reporterId === user.id){
